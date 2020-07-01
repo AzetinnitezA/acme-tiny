@@ -6,8 +6,8 @@ try:
 except ImportError:
     from urllib2 import urlopen, Request # Python 2
 
-DEFAULT_CA = "https://acme-v02.api.letsencrypt.org" # DEPRECATED! USE DEFAULT_DIRECTORY_URL INSTEAD
-DEFAULT_DIRECTORY_URL = "https://acme-v02.api.letsencrypt.org/directory"
+DEFAULT_CA = "http://localhost:14000" # DEPRECATED! USE DEFAULT_DIRECTORY_URL INSTEAD
+DEFAULT_DIRECTORY_URL = "http://localhost:14000/dir"
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.StreamHandler())
