@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # Copyright Daniel Roesler, under MIT license, see LICENSE at github.com/diafygi/acme-tiny
-import argparse, subprocess, json, os, sys, base64, binascii, time, hashlib, re, copy, textwrap, logging
+import argparse, subprocess, json, os, sys, base64, binascii, time, hashlib, re, copy, textwrap, logging, ssl
 try:
     from urllib.request import urlopen, Request # Python 3
 except ImportError:
     from urllib2 import urlopen, Request # Python 2
 
-DEFAULT_CA = "http://localhost:14000" # DEPRECATED! USE DEFAULT_DIRECTORY_URL INSTEAD
-DEFAULT_DIRECTORY_URL = "http://localhost:14000/dir"
+DEFAULT_CA = "https://0.0.0.0:14000" # DEPRECATED! USE DEFAULT_DIRECTORY_URL INSTEAD
+DEFAULT_DIRECTORY_URL = "https://0.0.0.0:14000/dir"
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.StreamHandler())
@@ -31,7 +31,7 @@ def get_crt(account_key, csr, acme_dir, log=LOGGER, CA=DEFAULT_CA, disable_check
     # helper function - make request and automatically parse json response
     def _do_request(url, data=None, err_msg="Error", depth=0):
         try:
-            resp = urlopen(Request(url, data=data, headers={"Content-Type": "application/jose+json", "User-Agent": "acme-tiny"}))
+            resp = urlopen(Request(url, data=data, headers={"Content-Type": "application/jose+json", "User-Agent": "acme-tiny"}), context=ssl._create_unverified_context())
             resp_data, code, headers = resp.read().decode("utf8"), resp.getcode(), resp.headers
         except IOError as e:
             resp_data = e.read().decode("utf8") if hasattr(e, "read") else str(e)
@@ -137,7 +137,7 @@ def get_crt(account_key, csr, acme_dir, log=LOGGER, CA=DEFAULT_CA, disable_check
 
         # check that the file is in place
         try:
-            wellknown_url = "http://{0}/.well-known/acme-challenge/{1}".format(domain, token)
+            wellknown_url = "http://{0}:5002/.well-known/acme-challenge/{1}".format(domain, token)
             assert (disable_check or _do_request(wellknown_url)[0] == keyauthorization)
         except (AssertionError, ValueError) as e:
             raise ValueError("Wrote file to {0}, but couldn't download {1}: {2}".format(wellknown_path, wellknown_url, e))

@@ -2,7 +2,7 @@ import http.server
 import socketserver
 import os
 
-PORT = 80
+PORT = 5002
 
 web_dir = os.path.join(os.path.dirname(__file__), 'html')
 os.chdir(web_dir)
