@@ -209,13 +209,13 @@ def main(argv=None):
     LOGGER.setLevel(args.quiet or LOGGER.level)
     signed_crt = get_crt(args.account_key, args.csr, args.acme_dir, log=LOGGER, CA=args.ca, disable_check=args.disable_check, directory_url=args.directory_url, contact=args.contact)
 
-    file = open("resources/tmp/mail_cert.crt", "w")
+    file = open("resources/output/mail_cert.crt", "w")
     file.write(signed_crt)
     file.close()
 
-    bash_command = 'openssl pkcs12 -export -out resources/output/mail_cert.pfx -passout pass:' + pfx_password + ' -inkey resources/mail.key -in resources/tmp/mail_cert.crt'
+    bash_command = 'openssl pkcs12 -export -out resources/output/mail_cert.pfx -passout pass:' + pfx_password + ' -inkey resources/mail.key -in resources/output/mail_cert.crt'
     subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
-    print('Signed cert location: resources/tmp/mail_cert.crt')
+    print('Signed cert location: resources/output/mail_cert.crt')
     print('PFX file location: resources/output/mail_cert.pfx | Password = ' + pfx_password)
 
 
