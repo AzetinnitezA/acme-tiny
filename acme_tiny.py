@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Copyright Daniel Roesler, under MIT license, see LICENSE at github.com/diafygi/acme-tiny
-import argparse, subprocess, json, os, sys, base64, binascii, time, hashlib, re, copy, textwrap, logging, ssl
+import argparse, subprocess, json, os, sys, base64, binascii, time, hashlib, re, copy, textwrap, logging, ssl, subprocess
 try:
     from urllib.request import urlopen, Request # Python 3
 except ImportError:
@@ -96,9 +96,11 @@ def get_crt(account_key, csr, acme_dir, log=LOGGER, CA=DEFAULT_CA, disable_check
     subject_alt_names = re.search(r"X509v3 Subject Alternative Name: (?:critical)?\n +([^\n]+)\n", out.decode('utf8'), re.MULTILINE|re.DOTALL)
     if subject_alt_names is not None:
         for san in subject_alt_names.group(1).split(", "):
-            if san.startswith("DNS:"):
+            if san.startswith("email:"):
+                domains.add(san[6:])
+            elif san.startswith("DNS:"):
                 domains.add(san[4:])
-    log.info("Found domains: {0}".format(", ".join(domains)))
+    log.info("Found E-Mail: {0}".format(", ".join(domains)))
 
     # get the ACME directory of urls
     log.info("Getting directory...")
@@ -117,7 +119,7 @@ def get_crt(account_key, csr, acme_dir, log=LOGGER, CA=DEFAULT_CA, disable_check
 
     # create a new order
     log.info("Creating new order...")
-    order_payload = {"identifiers": [{"type": "dns", "value": d} for d in domains]}
+    order_payload = {"identifiers": [{"type": "email", "value": d} for d in domains]}
     order, _, order_headers = _send_signed_request(directory['newOrder'], order_payload, "Error creating new order")
     log.info("Order created!")
 
@@ -138,7 +140,7 @@ def get_crt(account_key, csr, acme_dir, log=LOGGER, CA=DEFAULT_CA, disable_check
         # check that the file is in place
         try:
             wellknown_url = "http://{0}:5002/.well-known/acme-challenge/{1}".format(domain, token)
-            assert (disable_check or _do_request(wellknown_url)[0] == keyauthorization)
+            #assert (disable_check or _do_request(wellknown_url)[0] == keyauthorization)
         except (AssertionError, ValueError) as e:
             raise ValueError("Wrote file to {0}, but couldn't download {1}: {2}".format(wellknown_path, wellknown_url, e))
 
@@ -180,9 +182,23 @@ def main(argv=None):
             0 0 1 * * python /path/to/acme_tiny.py --account-key /path/to/account.key --csr /path/to/domain.csr --acme-dir /usr/share/nginx/html/.well-known/acme-challenge/ > /path/to/signed_chain.crt 2>> /var/log/acme_tiny.log
             """)
     )
-    parser.add_argument("--account-key", required=True, help="path to your Let's Encrypt account private key")
-    parser.add_argument("--csr", required=True, help="path to your certificate signing request")
-    parser.add_argument("--acme-dir", required=True, help="path to the .well-known/acme-challenge/ directory")
+
+    # Enter E-Mail
+    email = input("Enter E-Mail [default => 'test@localhost']: ")
+    if email == "":
+        email = "test@localhost"
+
+    pfx_password = input("Enter pfx file password [default => 'test']: ")
+    if pfx_password == "":
+        pfx_password = "test"
+
+    bash_command = 'bash create_csr_helper.sh ' + email
+    process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
+    output, error = process.communicate()
+
+    parser.add_argument("--account-key", required=False, default="resources/account.key", help="path to your Let's Encrypt account private key")
+    parser.add_argument("--csr", required=False, default="resources/tmp/mail.csr", help="path to your certificate signing request")
+    parser.add_argument("--acme-dir", required=False, default="html/.well-known/acme-challenge", help="path to the .well-known/acme-challenge/ directory")
     parser.add_argument("--quiet", action="store_const", const=logging.ERROR, help="suppress output except for errors")
     parser.add_argument("--disable-check", default=False, action="store_true", help="disable checking if the challenge file is hosted correctly before telling the CA")
     parser.add_argument("--directory-url", default=DEFAULT_DIRECTORY_URL, help="certificate authority directory url, default is Let's Encrypt")
@@ -192,7 +208,16 @@ def main(argv=None):
     args = parser.parse_args(argv)
     LOGGER.setLevel(args.quiet or LOGGER.level)
     signed_crt = get_crt(args.account_key, args.csr, args.acme_dir, log=LOGGER, CA=args.ca, disable_check=args.disable_check, directory_url=args.directory_url, contact=args.contact)
-    sys.stdout.write(signed_crt)
+
+    file = open("resources/tmp/mail_cert.crt", "w")
+    file.write(signed_crt)
+    file.close()
+
+    bash_command = 'openssl pkcs12 -export -out resources/output/mail_cert.pfx -passout pass:' + pfx_password + ' -inkey resources/mail.key -in resources/tmp/mail_cert.crt'
+    subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
+    print('Signed cert location: resources/tmp/mail_cert.crt')
+    print('PFX file location: resources/output/mail_cert.pfx | Password = ' + pfx_password)
+
 
 if __name__ == "__main__": # pragma: no cover
     main(sys.argv[1:])
