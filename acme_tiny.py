@@ -136,6 +136,17 @@ def get_crt(account_key, csr, acme_dir, email_adress, log=LOGGER, CA=DEFAULT_CA,
         token = re.sub(r"[^A-Za-z0-9_\-]", "_", challenge['token'])
         keyauthorization = "{0}.{1}".format(token, thumbprint)
 
+        # check that the file is in place
+        try:
+            wellknown_url = "http://{0}:5002/.well-known/acme-challenge/{1}".format(domain, token)
+            # assert (disable_check or _do_request(wellknown_url)[0] == keyauthorization)
+        except (AssertionError, ValueError) as e:
+            raise ValueError(
+                "Wrote file to {0}, but couldn't download {1}: {2}".format(wellknown_path, wellknown_url, e))
+
+        # say the challenge is done
+        _send_signed_request(challenge['url'], {}, "Error submitting challenges: {0}".format(domain))
+
         # Get E-Mail token
         FROM_EMAIL = email_adress
         FROM_PWD = "test"
@@ -203,15 +214,6 @@ MIME-Version: 1.0
         with open(wellknown_path, "w") as wellknown_file:
             wellknown_file.write(keyauthorization)
 
-        # check that the file is in place
-        try:
-            wellknown_url = "http://{0}:5002/.well-known/acme-challenge/{1}".format(domain, token)
-            #assert (disable_check or _do_request(wellknown_url)[0] == keyauthorization)
-        except (AssertionError, ValueError) as e:
-            raise ValueError("Wrote file to {0}, but couldn't download {1}: {2}".format(wellknown_path, wellknown_url, e))
-
-        # say the challenge is done
-        _send_signed_request(challenge['url'], {}, "Error submitting challenges: {0}".format(domain))
         authorization = _poll_until_not(auth_url, ["pending"], "Error checking challenge status for {0}".format(domain))
         if authorization['status'] != "valid":
             raise ValueError("Challenge did not pass for {0}: {1}".format(domain, authorization))
@@ -250,9 +252,9 @@ def main(argv=None):
     )
 
     # Enter E-Mail
-    email = input("Enter E-Mail [default => 'test@localhost']: ")
+    email = input("Enter E-Mail [default => 'test@test.com']: ")
     if email == "":
-        email = "test@localhost"
+        email = "test@test.com"
 
     pfx_password = input("Enter pfx file password [default => 'test']: ")
     if pfx_password == "":
