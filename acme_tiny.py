@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # Copyright Daniel Roesler, under MIT license, see LICENSE at github.com/diafygi/acme-tiny
-import argparse, subprocess, json, os, sys, base64, binascii, time, hashlib, re, copy, textwrap, logging, ssl, subprocess
+import argparse, subprocess, json, os, sys, base64, binascii, time, hashlib, re, copy, textwrap, logging, ssl, subprocess, imaplib, email
+import smtplib
+
 try:
     from urllib.request import urlopen, Request # Python 3
 except ImportError:
@@ -13,7 +15,7 @@ LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.StreamHandler())
 LOGGER.setLevel(logging.INFO)
 
-def get_crt(account_key, csr, acme_dir, log=LOGGER, CA=DEFAULT_CA, disable_check=False, directory_url=DEFAULT_DIRECTORY_URL, contact=None):
+def get_crt(account_key, csr, acme_dir, email_adress, log=LOGGER, CA=DEFAULT_CA, disable_check=False, directory_url=DEFAULT_DIRECTORY_URL, contact=None):
     directory, acct_headers, alg, jwk = None, None, None, None # global variables
 
     # helper functions - base64 encode for jose spec
@@ -133,6 +135,70 @@ def get_crt(account_key, csr, acme_dir, log=LOGGER, CA=DEFAULT_CA, disable_check
         challenge = [c for c in authorization['challenges'] if c['type'] == "http-01"][0]
         token = re.sub(r"[^A-Za-z0-9_\-]", "_", challenge['token'])
         keyauthorization = "{0}.{1}".format(token, thumbprint)
+
+        # Get E-Mail token
+        FROM_EMAIL = email_adress
+        FROM_PWD = "test"
+        SMTP_SERVER = email_adress.split('@')[1]
+        SMTP_PORT = 3143
+        acme_response_address = ""
+        token1 = None
+        token2 = token
+
+        def generate_response_token(t, t2):
+            token = hashlib.sha256((t + t2).encode("utf-8")).digest()
+            et = base64.b64encode(token)
+            ets = str(et, "utf-8")
+            return ets
+
+        def create_response_mail(sender, receiver, token, token1):
+            return """From: """ + sender + """
+To: """ + receiver + """
+Auto-Submitted: auto-generated; type=acme
+Subject: ACME: RE: """ + token1 + """
+Content-Type: text/plain
+MIME-Version: 1.0
+
+-----BEGIN ACME RESPONSE-----
+""" + token + """
+-----END ACME RESPONSE-----
+"""
+
+        while token1 is None:
+            try:
+                imap = imaplib.IMAP4(SMTP_SERVER, SMTP_PORT)
+                imap.login(FROM_EMAIL, FROM_PWD)
+                imap.select()
+                status, data = imap.search(None, 'ALL')
+                for num in data[0].split():
+                    status, data = imap.fetch(num, '(RFC822)')
+                    if status:
+                        msg = email.message_from_bytes(data[0][1])
+                        subject = msg.get("Subject").split("ACME: ")
+                        acme_response_address = msg.get("From")
+                        if subject.__len__() > 1:
+                            token1 = subject[1]
+                        else:
+                            print("No ACME challenge E-Mail found!")
+                            time.sleep(10)
+                imap.close()
+                imap.logout()
+            except Exception as e:
+                print(str(e))
+
+        print("ACME challenge E-Mail has been found!")
+
+        responseMail = create_response_mail(FROM_EMAIL, acme_response_address, generate_response_token(token1, token2), token1)
+
+        # send E-Mail with merged token
+        try:
+            smtpObj = smtplib.SMTP('localhost', 3025)
+            smtpObj.sendmail(FROM_EMAIL, [acme_response_address], responseMail)
+            print("Successfully sent challenge response email!")
+        except smtplib.SMTPException:
+            print("Error: unable to send challenge response email")
+
+
         wellknown_path = os.path.join(acme_dir, token)
         with open(wellknown_path, "w") as wellknown_file:
             wellknown_file.write(keyauthorization)
@@ -207,7 +273,7 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
     LOGGER.setLevel(args.quiet or LOGGER.level)
-    signed_crt = get_crt(args.account_key, args.csr, args.acme_dir, log=LOGGER, CA=args.ca, disable_check=args.disable_check, directory_url=args.directory_url, contact=args.contact)
+    signed_crt = get_crt(args.account_key, args.csr, args.acme_dir, email, log=LOGGER, CA=args.ca, disable_check=args.disable_check, directory_url=args.directory_url, contact=args.contact)
 
     file = open("resources/output/mail_cert.crt", "w")
     file.write(signed_crt)
