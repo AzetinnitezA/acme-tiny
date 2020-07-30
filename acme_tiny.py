@@ -187,7 +187,7 @@ MIME-Version: 1.0
                         msg = email.message_from_bytes(data[0][1])
                         subject = msg.get("Subject").split("ACME: ")
                         acme_response_address = msg.get("From")
-                        if subject.__len__() > 1:
+                        if len(subject) > 1:
                             token1 = subject[1]
                         else:
                             print("No ACME challenge E-Mail found!")
