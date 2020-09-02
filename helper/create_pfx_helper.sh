@@ -1,0 +1,1 @@
+openssl pkcs12 -export -out ../resources/output/mail_cert.pfx -passout pass:test -inkey ../resources/mail.key -in ../resources/output/mail_cert.crt

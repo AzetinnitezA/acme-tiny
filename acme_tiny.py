@@ -251,20 +251,8 @@ def main(argv=None):
             """)
     )
 
-    # Enter E-Mail
-    email = input("Enter E-Mail [default => 'test@test.com']: ")
-    if email == "":
-        email = "test@test.com"
-
-    pfx_password = input("Enter pfx file password [default => 'test']: ")
-    if pfx_password == "":
-        pfx_password = "test"
-
-    bash_command = 'bash create_csr_helper.sh ' + email
-    process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
-    output, error = process.communicate()
-
     parser.add_argument("--account-key", required=False, default="resources/account.key", help="path to your Let's Encrypt account private key")
+    parser.add_argument("--email", required=True, help="E-Mail address")
     parser.add_argument("--csr", required=False, default="resources/tmp/mail.csr", help="path to your certificate signing request")
     parser.add_argument("--acme-dir", required=False, default="html/.well-known/acme-challenge", help="path to the .well-known/acme-challenge/ directory")
     parser.add_argument("--quiet", action="store_const", const=logging.ERROR, help="suppress output except for errors")
@@ -275,16 +263,11 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
     LOGGER.setLevel(args.quiet or LOGGER.level)
-    signed_crt = get_crt(args.account_key, args.csr, args.acme_dir, email, log=LOGGER, CA=args.ca, disable_check=args.disable_check, directory_url=args.directory_url, contact=args.contact)
+    signed_crt = get_crt(args.account_key, args.csr, args.acme_dir, args.email, log=LOGGER, CA=args.ca, disable_check=args.disable_check, directory_url=args.directory_url, contact=args.contact)
 
     file = open("resources/output/mail_cert.crt", "w")
     file.write(signed_crt)
     file.close()
-
-    bash_command = 'openssl pkcs12 -export -out resources/output/mail_cert.pfx -passout pass:' + pfx_password + ' -inkey resources/mail.key -in resources/output/mail_cert.crt'
-    subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
-    print('Signed cert location: resources/output/mail_cert.crt')
-    print('PFX file location: resources/output/mail_cert.pfx | Password = ' + pfx_password)
 
 
 if __name__ == "__main__": # pragma: no cover
