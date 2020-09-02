@@ -15,7 +15,7 @@ LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.StreamHandler())
 LOGGER.setLevel(logging.INFO)
 
-def get_crt(account_key, csr, acme_dir, email_adress, log=LOGGER, CA=DEFAULT_CA, disable_check=False, directory_url=DEFAULT_DIRECTORY_URL, contact=None):
+def get_crt(account_key, csr, acme_dir, log=LOGGER, CA=DEFAULT_CA, disable_check=False, directory_url=DEFAULT_DIRECTORY_URL, contact=None):
     directory, acct_headers, alg, jwk = None, None, None, None # global variables
 
     # helper functions - base64 encode for jose spec
@@ -148,9 +148,9 @@ def get_crt(account_key, csr, acme_dir, email_adress, log=LOGGER, CA=DEFAULT_CA,
         _send_signed_request(challenge['url'], {}, "Error submitting challenges: {0}".format(domain))
 
         # Get E-Mail token
-        FROM_EMAIL = email_adress
+        FROM_EMAIL = open("resources/tmp/email.txt").read()
         FROM_PWD = "test"
-        SMTP_SERVER = email_adress.split('@')[1]
+        SMTP_SERVER = FROM_EMAIL.split('@')[1]
         SMTP_PORT = 3143
         acme_response_address = ""
         token1 = None
@@ -252,7 +252,6 @@ def main(argv=None):
     )
 
     parser.add_argument("--account-key", required=False, default="resources/account.key", help="path to your Let's Encrypt account private key")
-    parser.add_argument("--email", required=True, help="E-Mail address")
     parser.add_argument("--csr", required=False, default="resources/tmp/mail.csr", help="path to your certificate signing request")
     parser.add_argument("--acme-dir", required=False, default="html/.well-known/acme-challenge", help="path to the .well-known/acme-challenge/ directory")
     parser.add_argument("--quiet", action="store_const", const=logging.ERROR, help="suppress output except for errors")
@@ -263,7 +262,7 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
     LOGGER.setLevel(args.quiet or LOGGER.level)
-    signed_crt = get_crt(args.account_key, args.csr, args.acme_dir, args.email, log=LOGGER, CA=args.ca, disable_check=args.disable_check, directory_url=args.directory_url, contact=args.contact)
+    signed_crt = get_crt(args.account_key, args.csr, args.acme_dir, log=LOGGER, CA=args.ca, disable_check=args.disable_check, directory_url=args.directory_url, contact=args.contact)
 
     file = open("resources/output/mail_cert.crt", "w")
     file.write(signed_crt)
