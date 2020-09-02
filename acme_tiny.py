@@ -188,6 +188,7 @@ MIME-Version: 1.0
                         subject = msg.get("Subject").split("ACME: ")
                         acme_response_address = msg.get("From")
                         if len(subject) > 1:
+                            imap.store(num, '+FLAGS', '\\Deleted')
                             token1 = subject[1]
                         else:
                             print("No ACME challenge E-Mail found!")
