@@ -3,6 +3,8 @@
 import argparse, subprocess, json, os, sys, base64, binascii, time, hashlib, re, copy, textwrap, logging, ssl, subprocess, imaplib, email
 import smtplib
 
+from pip._vendor import requests
+
 try:
     from urllib.request import urlopen, Request # Python 3
 except ImportError:
@@ -268,6 +270,11 @@ def main(argv=None):
     file = open("resources/output/mail_cert.crt", "w")
     file.write(signed_crt)
     file.close()
+
+    r = requests.get('https://0.0.0.0:15000/roots/0', verify=False)
+    rootCa = open("resources/output/root.crt", "w")
+    rootCa.write(r.text)
+    rootCa.close()
 
 
 if __name__ == "__main__": # pragma: no cover
