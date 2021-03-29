@@ -267,15 +267,7 @@ def main(argv=None):
     LOGGER.setLevel(args.quiet or LOGGER.level)
     signed_crt = get_crt(args.account_key, args.csr, args.acme_dir, log=LOGGER, CA=args.ca, disable_check=args.disable_check, directory_url=args.directory_url, contact=args.contact)
 
-    file = open("resources/output/mail_cert.crt", "w")
-    file.write(signed_crt)
-    file.close()
-
-    r = requests.get('https://0.0.0.0:15000/roots/0', verify=False)
-    rootCa = open("resources/output/root.crt", "w")
-    rootCa.write(r.text)
-    rootCa.close()
-
+    sys.stdout.write(signed_crt)
 
 if __name__ == "__main__": # pragma: no cover
     main(sys.argv[1:])
