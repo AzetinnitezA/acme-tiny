@@ -1,1 +1,0 @@
-openssl genrsa 4096 > ../resources/account.key

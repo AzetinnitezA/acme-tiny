@@ -1,1 +1,0 @@
-openssl genrsa 4096 > ../resources/domain.key
