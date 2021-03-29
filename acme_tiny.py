@@ -35,7 +35,7 @@ def get_crt(account_key, csr, acme_dir, log=LOGGER, CA=DEFAULT_CA, disable_check
     # helper function - make request and automatically parse json response
     def _do_request(url, data=None, err_msg="Error", depth=0):
         try:
-            resp = urlopen(Request(url, data=data, headers={"Content-Type": "application/jose+json", "User-Agent": "acme-tiny"}), context=ssl._create_unverified_context())
+            resp = urlopen(Request(url, data=data, headers={"Content-Type": "application/jose+json", "User-Agent": "acme-tiny"}))
             resp_data, code, headers = resp.read().decode("utf8"), resp.getcode(), resp.headers
         except IOError as e:
             resp_data = e.read().decode("utf8") if hasattr(e, "read") else str(e)
@@ -140,11 +140,10 @@ def get_crt(account_key, csr, acme_dir, log=LOGGER, CA=DEFAULT_CA, disable_check
 
         # check that the file is in place
         try:
-            wellknown_url = "http://{0}:5002/.well-known/acme-challenge/{1}".format(domain, token)
-            # assert (disable_check or _do_request(wellknown_url)[0] == keyauthorization)
+            wellknown_url = "http://{0}/.well-known/acme-challenge/{1}".format(domain, token)
+            assert (disable_check or _do_request(wellknown_url)[0] == keyauthorization)
         except (AssertionError, ValueError) as e:
-            raise ValueError(
-                "Wrote file to {0}, but couldn't download {1}: {2}".format(wellknown_path, wellknown_url, e))
+            raise ValueError("Wrote file to {0}, but couldn't download {1}: {2}".format(wellknown_path, wellknown_url, e))
 
         # say the challenge is done
         _send_signed_request(challenge['url'], {}, "Error submitting challenges: {0}".format(domain))
