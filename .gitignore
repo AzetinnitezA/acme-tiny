@@ -55,3 +55,10 @@ docs/_build/
 
 # PyBuilder
 target/
+
+html
+!html/.well-known/acme-challenge/.gitkeep
+venv
+.idea
+thrash
+resources/tmp
